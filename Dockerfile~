@@ -1,0 +1,105 @@
+# 系统环境使用ubuntu 22.04。在ubuntu中配置环境，由于docker对GUI支持不好，所以使用Code server的形式配置环境
+# 剩余ozone和CubeMX，则在docker之外配置，因为ozone的作用相对其他部分独立，而CubeMX的配置需要GUI支持，所以不在docker中配置。
+FROM ubuntu:22.04
+
+# 更新时区
+ENV TZ=Asia/Shanghai
+
+# 创建工作目录
+WORKDIR /Lif_enviroment
+
+# 更换到清华源,文件来源及说明请参阅:https://mirrors.tuna.tsinghua.edu.cn/help/ubuntu/
+RUN printf "\
+deb https://mirrors.tuna.tsinghua.edu.cn/ubuntu/ jammy main restricted universe multiverse \n\
+deb-src https://mirrors.tuna.tsinghua.edu.cn/ubuntu/ jammy main restricted universe multiverse \n\
+deb https://mirrors.tuna.tsinghua.edu.cn/ubuntu/ jammy-updates main restricted universe multiverse \n\
+deb-src https://mirrors.tuna.tsinghua.edu.cn/ubuntu/ jammy-updates main restricted universe multiverse \n\
+deb https://mirrors.tuna.tsinghua.edu.cn/ubuntu/ jammy-backports main restricted universe multiverse \n\
+deb-src https://mirrors.tuna.tsinghua.edu.cn/ubuntu/ jammy-backports main restricted universe multiverse \n\
+\n\
+deb http://security.ubuntu.com/ubuntu/ jammy-security main restricted universe multiverse \n\
+deb-src http://security.ubuntu.com/ubuntu/ jammy-security main restricted universe multiverse" > /etc/apt/sources.list
+
+
+# 更新系统软件包
+RUN apt-get update && \
+    apt-get install -y ca-certificates && \
+    apt-get upgrade -y && \
+    apt-get autoremove -y && \
+    apt-get clean
+
+# 安装curl
+RUN apt-get update && \
+    apt-get install -y curl && \
+    apt-get clean
+
+# 安装git
+RUN apt-get update && \
+    apt-get install -y git && \
+    apt-get clean
+
+# 安装gcc的arm交叉编译工具链
+RUN apt-get update && \
+    apt-get install -y gcc-arm-none-eabi && \
+    apt-get clean
+
+# 安装openocd
+RUN apt-get update && \
+    apt-get install -y openocd && \
+    apt-get clean
+
+# 安装code-server
+ENV VERSION=4.20.0
+RUN curl -fOL https://github.com/coder/code-server/releases/download/v$VERSION/code-server_${VERSION}_amd64.deb && \
+dpkg -i code-server_${VERSION}_amd64.deb
+# Now visit http://127.0.0.1:8080. Your password is in ~/.config/code-server/config.yaml
+RUN apt-get install -y --fix-broken && \
+    apt-get clean
+
+
+# 配置VSCode环境
+## - Chinese (Simplified) (简体中文) Language Pack：顾名思义界面变中文
+RUN code-server --install-extension ms-ceintl.vscode-language-pack-zh-hans
+## C/C++ 和 C/C++ Extension Pack:提供C/C++的调试和代码高亮支持
+RUN code-server --install-extension franneck94.vscode-c-cpp-dev-extension-pack
+## Better C++ Syntax：用于静态解析C++代码，为intellisense以及language server提供代码高亮和完整的智能提示选项。
+RUN code-server --install-extension better-cpp-syntax
+## Cortex-Debug和Cortex-Debug: Device Support Pack - STM32F4：提供调试支持。cortex debug还会自动帮助你安装一些调试相关的插件，包括RTOS支持和内存查看等。
+RUN code-server --install-extension marus25.cortex-debug
+# -X- RUN code-server --install-extension marus25.cortex-debug-dp-stm32f4 
+# -X- ## IntelliCode：提供代码高亮支持。喜欢clang的同学可以使用clangd。
+# -X- RUN code-server --install-extension visualstudioexptteam.vscodeintellicode
+## Makefile Tools：makefile的插件工具，makefile通过Makefile Tools插件设置生成compile_commands.json的路径
+RUN code-server --install-extension ms-vscode.makefile-tools
+## Blockman：为代码分块。不同的作用域会被浅色背景边框包围，同时高亮当前focus的代码块，方便在大段代码中定位程序控制流。
+RUN code-server --install-extension leodevbro.blockman
+## Bookmarks：为代码添加书签，可以在左侧tab页中跳转到对应位置，方便阅读代码时往复查看，也有助于阅读理解。右键点击代码行号左侧（即打断点的地方）可以添加书签或带label的书签。
+RUN code-server --install-extension alefragnani.Bookmarks
+# -X- ## C/C++ Snippets：为基本的语句（关键字）提供代码补全
+# -X- RUN code-server --install-extension hars.CppSnippets
+# -X- ## Code Issue Manager：可以在代码的任意地方插入“便签”和“评注”
+# -X- RUN code-server --install-extension anshu1018.code-issue-manager
+## Doxygen Documentation Generator：为你的代码生成doxygen文档格式的注释。同时也支持一些基本的注释块生成。
+RUN code-server --install-extension cschlosser.doxdocgecode-server --install-extension cschlosser.doxdocgenn
+# -X- ## Github Copilot / Copilot Labs / Copilot Chat：体验大模型的威力。尤其是Copilot Chat非常适合为你提供一门语言的入门级咨询。
+# -X- ## 由于Copilot是私有模型，所以需要在github上申请，然后在code-server中登录github账号，才能使用。
+# -X- ## 不过也有学生账号可以使用，可以在github上申请学生账号，然后在code-server中登录学生账号，就可以使用了，申请到了自行安装。
+# -X- # RUN code-server --install-extension github.copilot
+# -X- # RUN code-server --install-extension github.copilot.labs
+# -X- # RUN code-server --install-extension github.copilot.chat
+## Gitlens：方便地通过图形化的方式管理你的git仓库
+RUN code-server --install-extension eamodio.gitlens
+## HexEditor 和 Hex Hover Converter：以十六进制编辑文件 和 鼠标悬停在任意数值类型上时自动提供2/8/16进制的转换
+RUN code-server --install-extension ms-vscode.hexeditor
+
+# 在容器中创建挂载点
+VOLUME ["/path/on/host"]
+
+# 暴露 code-server 默认端口
+EXPOSE 8080
+
+# 改密码
+RUN printf "bind-addr: 0.0.0.0:8080\n" > /root/.config/code-server/config.yaml && printf "auth: password\n" >> /root/.config/code-server/config.yaml && printf "password: "12345678" >> /root/.config/code-server/config.yaml && printf "\ncert: false" >> /root/.config/code-server/config.yaml
+
+# 启动 code-server，并将挂载点作为工作目录
+ENTRYPOINT ["code-server", "--user-data-dir", "/path/on/host", "--bind-addr", "0.0.0.0:8080"]
